@@ -16,6 +16,16 @@
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
+## 界面预览
+
+### 不修改工作流画布，直接收藏当前提示词
+
+![收藏当前提示词](docs/assets/prompt-bookmarks-save-dialog.webp)
+
+### 在侧边栏浏览提示词，并自动关联生成的图片 / 视频预览
+
+![带视频预览的 Prompt Bookmarks 侧边栏](docs/assets/prompt-bookmarks-video-preview.webp)
+
 ## 为什么做 Prompt Bookmarks？
 
 在 ComfyUI 里不断试提示词很方便，但真正好用的提示词经常散落在不同工作流、文本文件、聊天记录或复制粘贴片段里。
@@ -162,7 +172,7 @@ python -m unittest discover -s tests -v
 前端语法检查：
 
 ```bash
-node --check web/prompt_bookmarks.js
+for file in web/*.js; do node --check "$file"; done
 ```
 
 开发路线见 [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md)。
