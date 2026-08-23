@@ -16,6 +16,16 @@
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
+## Screenshots
+
+### Save the current prompt without touching the workflow graph
+
+![Save Current Prompt dialog](docs/assets/prompt-bookmarks-save-dialog.webp)
+
+### Browse saved prompts with generated image/video previews in the sidebar
+
+![Prompt Bookmarks sidebar with video preview](docs/assets/prompt-bookmarks-video-preview.webp)
+
 ## Why Prompt Bookmarks?
 
 ComfyUI makes it easy to experiment with prompts, but good prompts often end up scattered across workflow files, text notes, chat history, or copy-paste snippets.
@@ -154,7 +164,7 @@ python -m unittest discover -s tests -v
 Frontend syntax check:
 
 ```bash
-node --check web/prompt_bookmarks.js
+for file in web/*.js; do node --check "$file"; done
 ```
 
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the implementation roadmap.
