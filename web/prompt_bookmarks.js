@@ -119,6 +119,8 @@ const I18N = {
     locateFailed: "无法定位节点",
     exposedOnly: "当前版本仅处理当前画布及组合节点/子图对外暴露的可编辑字段。",
     saveBeforeBookmark: "第一次收藏前，需要先选择哪些文本字段属于这组提示词。",
+    manualAddBtn: "＋ 手动新建",
+    manualAddPrompt: "手动新建提示词",
   },
   "en-US": {
     title: "Prompt Bookmarks",
@@ -130,6 +132,8 @@ const I18N = {
     search: "Search prompts...",
     all: "All",
     saveCurrent: "＋ Save Current Prompt",
+    manualAddBtn: "＋ Manual Add",
+    manualAddPrompt: "Add Manual Prompt",
     configure: "Choose Prompt Fields",
     configureTitle: "Choose Prompt Fields",
     configureDesc: "Prompt Bookmarks found editable text fields in this workflow. Select the fields that should be saved and restored together. You never need to enter node IDs.",
@@ -553,6 +557,64 @@ async function saveCurrentPrompt() {
   setTimeout(() => name.focus(), 0);
 }
 
+async function manualAddPrompt() {
+  if (!state.workflow) return;
+  if (!state.bindings.length) {
+    notify("info", t("configure"), t("saveBeforeBookmark"));
+    return configureBindings();
+  }
+  const resolvedBindings = state.bindings
+    .map((binding) => ({ binding, target: resolveLiveField(binding) }))
+    .filter((item) => item.target);
+  if (!resolvedBindings.length) {
+    notify("warn", t("configure"), t("missingConfiguredFields"));
+    return configureBindings();
+  }
+  const dlg = openDialog(t("manualAddPrompt"));
+  const name = document.createElement("input"); name.className = "pb-input"; name.placeholder = t("bookmarkNamePlaceholder"); name.autofocus = true;
+  const group = document.createElement("input"); group.className = "pb-input"; group.placeholder = t("groupPlaceholder");
+  dlg.body.append(field(t("bookmarkName"), name), field(t("groupOptional"), group));
+
+  const fieldsSection = document.createElement("div"); fieldsSection.className = "pb-section";
+  const fieldsLabel = document.createElement("div"); fieldsLabel.className = "pb-label"; fieldsLabel.textContent = t("fieldsToSave"); fieldsSection.appendChild(fieldsLabel);
+
+  const fieldInputs = [];
+  for (const { binding, target } of resolvedBindings) {
+    const wrap = document.createElement("div"); wrap.className = "pb-section";
+    const label = document.createElement("div"); label.className = "pb-label"; label.textContent = binding.label || binding.widget_name;
+    const textarea = document.createElement("textarea"); textarea.className = "pb-textarea";
+    textarea.placeholder = `${binding.label || binding.widget_name}...`;
+    textarea.value = target.widget?.value ? String(target.widget.value) : "";
+    wrap.append(label, textarea);
+    fieldsSection.appendChild(wrap);
+    fieldInputs.push({ binding, target, textarea });
+  }
+  dlg.body.appendChild(fieldsSection);
+
+  dlg.foot.append(button(t("cancel"), () => dlg.overlay.remove()), button(t("createBookmark"), async () => {
+    const cleanedName = name.value.trim(); if (!cleanedName) { name.focus(); return; }
+    const groupName = group.value.trim(); let groupId = null;
+    if (groupName) {
+      let found = state.groups.find((g) => g.name.toLowerCase() === groupName.toLowerCase());
+      if (!found) found = await request("/groups", { method: "POST", body: JSON.stringify({ workflow_id: state.workflow.id, name: groupName }) });
+      groupId = found.id;
+    }
+    const fields = fieldInputs.map(({ binding, target, textarea }) => {
+      const f = currentField(binding, target);
+      f.value = textarea.value;
+      return f;
+    });
+    const existing = await findBookmarkConflict(cleanedName, groupId);
+    if (existing) {
+      showBookmarkConflict({ existing, cleanedName, groupName, groupId, fields, saveDialog: dlg, nameInput: name });
+      return;
+    }
+    await request("/prompts", { method: "POST", body: JSON.stringify({ workflow_id: state.workflow.id, group_id: groupId, name: cleanedName, fields, notes: "" }) });
+    dlg.overlay.remove(); await loadData(); notify("success", t("promptBookmarked"), cleanedName);
+  }));
+  setTimeout(() => name.focus(), 0);
+}
+
 function applyPrompt(prompt) {
   let applied = 0; const missing = [];
   for (const field of prompt.fields || []) {
@@ -808,7 +870,11 @@ function render() {
   const search = document.createElement("input"); search.className = "pb-search"; search.placeholder = t("search"); search.value = state.search; let timer;
   search.oninput = () => { state.search = search.value; clearTimeout(timer); timer = setTimeout(() => loadPrompts().catch(console.error), 220); }; head.appendChild(search);
   renderGroupFilters(head);
-  const save = button(t("saveCurrent"), saveCurrentPrompt); save.disabled = !state.workflow; head.appendChild(save); state.root.appendChild(head);
+  const actions = document.createElement("div"); actions.className = "pb-tabs";
+  const save = button(t("saveCurrent"), saveCurrentPrompt); save.disabled = !state.workflow;
+  const manual = button(t("manualAddBtn"), manualAddPrompt); manual.disabled = !state.workflow;
+  actions.append(save, manual);
+  head.appendChild(actions); state.root.appendChild(head);
   const body = document.createElement("div"); body.className = "pb-body";
   if (!state.workflow && !state.allMode) { const e = document.createElement("div"); e.className = "pb-empty"; e.textContent = t("openWorkflow"); body.appendChild(e); }
   else if ((!state.bindings.length || !collectCurrentFields().length) && !state.allMode) {
